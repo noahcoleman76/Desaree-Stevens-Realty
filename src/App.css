@@ -1,0 +1,379 @@
+.site-shell {
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(248, 216, 157, 0.5), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(141, 183, 157, 0.35), transparent 30%),
+    linear-gradient(180deg, #f6efe3 0%, #f7f5f0 45%, #eef3ee 100%);
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  max-width: 1180px;
+  margin: 0 auto 32px;
+  padding: 20px 24px;
+  border: 1px solid rgba(56, 67, 52, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 251, 246, 0.82);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(67, 52, 34, 0.09);
+}
+
+.brand-kicker {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b6a3e;
+}
+
+.brand {
+  color: #1f2c1f;
+  text-decoration: none;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.nav-link {
+  padding: 10px 16px;
+  border-radius: 999px;
+  color: #384737;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.62);
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  background: #314a34;
+  color: #f8f2e7;
+  transform: translateY(-1px);
+}
+
+.page-stack {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  gap: 28px;
+}
+
+.hero,
+.info-card,
+.accent-card,
+.education-section,
+.listing-card,
+.listing-form,
+.section-heading {
+  border: 1px solid rgba(56, 67, 52, 0.08);
+  background: rgba(255, 251, 246, 0.85);
+  box-shadow: 0 18px 50px rgba(67, 52, 34, 0.08);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.3fr 0.8fr;
+  gap: 28px;
+  padding: 40px;
+  border-radius: 36px;
+}
+
+.hero-copy h1,
+.section-heading h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 6vw, 5.5rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+  color: #1b281b;
+}
+
+.hero-text,
+.section-copy,
+.info-card p,
+.education-card p,
+.listing-description,
+.listing-header p,
+.form-message,
+label,
+small {
+  color: #4c5f4d;
+}
+
+.hero-text,
+.section-copy {
+  max-width: 45rem;
+  font-size: 1.08rem;
+  line-height: 1.8;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.primary-button,
+.secondary-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 22px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: #2d4a34;
+  color: #fff8ef;
+}
+
+.secondary-button {
+  background: #ead9bb;
+  color: #433522;
+}
+
+.hero-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.metric {
+  padding: 20px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #fffdf8 0%, #f3ebdf 100%);
+}
+
+.metric-value {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #243424;
+}
+
+.metric-label {
+  color: #5b6a5d;
+}
+
+.section-label {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #927047;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.info-card,
+.accent-card,
+.education-section,
+.listing-form,
+.section-heading {
+  padding: 32px;
+  border-radius: 28px;
+}
+
+.info-card h2,
+.education-section h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.02;
+  color: #203020;
+}
+
+.accent-card {
+  background: linear-gradient(160deg, rgba(233, 244, 233, 0.92), rgba(252, 244, 230, 0.92));
+}
+
+.education-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.education-card {
+  padding: 22px;
+  border-radius: 22px;
+  background: #fffdf8;
+}
+
+.education-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #253725;
+}
+
+.listing-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.listing-card {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  overflow: hidden;
+  border-radius: 28px;
+}
+
+.listing-image {
+  min-height: 220px;
+  display: flex;
+  align-items: flex-end;
+  padding: 22px;
+  background:
+    linear-gradient(180deg, rgba(33, 50, 36, 0.1), rgba(33, 50, 36, 0.55)),
+    linear-gradient(135deg, #a2c1aa, #ead9bb);
+}
+
+.listing-image span {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 248, 239, 0.9);
+  color: #2f4931;
+  font-weight: 700;
+}
+
+.listing-content {
+  padding: 28px;
+}
+
+.listing-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.listing-header h2 {
+  margin: 0 0 6px;
+  color: #213021;
+}
+
+.listing-header strong {
+  font-size: 1.3rem;
+  color: #8a673d;
+}
+
+.listing-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 18px 0 12px;
+  color: #3f5342;
+  font-weight: 700;
+}
+
+.listing-form {
+  display: grid;
+  gap: 22px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+label {
+  display: grid;
+  gap: 10px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(49, 74, 52, 0.16);
+  border-radius: 16px;
+  font: inherit;
+  color: #203020;
+  background: #fffdfa;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.upload-field input[type='file'] {
+  padding: 12px;
+  background: #f7f2ea;
+}
+
+.photo-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.photo-pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #e8efe4;
+  color: #2f4931;
+  font-size: 0.92rem;
+}
+
+.form-message {
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 920px) {
+  .site-header,
+  .hero,
+  .listing-card,
+  .info-grid,
+  .education-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .site-header {
+    align-items: flex-start;
+  }
+
+  .listing-image {
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-shell {
+    padding: 16px;
+  }
+
+  .site-header,
+  .hero,
+  .info-card,
+  .accent-card,
+  .education-section,
+  .listing-content,
+  .listing-form,
+  .section-heading {
+    padding: 22px;
+  }
+
+  .hero-copy h1,
+  .section-heading h1 {
+    font-size: 2.5rem;
+  }
+}
