@@ -1,82 +1,129 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-const listings = [
-  {
-    id: 1,
-    title: 'Foothills View Retreat',
-    price: '$845,000',
-    location: 'Golden, CO',
-    beds: 4,
-    baths: 3,
-    sqft: '2,980',
-    status: 'New',
-    description:
-      'Sunlit living spaces, updated kitchen finishes, and a covered patio with Front Range views.',
-  },
-  {
-    id: 2,
-    title: 'City Park Townhome',
-    price: '$615,000',
-    location: 'Denver, CO',
-    beds: 3,
-    baths: 2.5,
-    sqft: '1,860',
-    status: 'Featured',
-    description:
-      'Walkable location with modern interiors, rooftop entertaining space, and oversized windows.',
-  },
-  {
-    id: 3,
-    title: 'Maple Grove Estate',
-    price: '$1,275,000',
-    location: 'Littleton, CO',
-    beds: 5,
-    baths: 4,
-    sqft: '4,420',
-    status: 'Open House',
-    description:
-      'Generous floor plan, finished basement, and private backyard designed for family gatherings.',
-  },
-]
+const WEB_APP_URL =
+  'https://script.google.com/macros/s/AKfycbzLvlnMFkkzPviQyafW2L1xeF6s7C6N92ByXUuPLsAJ99XWpKRLt_6YC_ohIHOtxS1S/exec'
 
 const pageLabels = {
   home: 'Home',
   listings: 'Listings',
-  upload: 'Add Listing',
+  manage: 'Manage Listings',
 }
+
+const initialFormData = {
+  title: '',
+  address: '',
+  city: '',
+  state: 'NV',
+  zip: '',
+  price: '',
+  bedrooms: '',
+  bathrooms: '',
+  squareFeet: '',
+  propertyType: 'Single Family',
+  description: '',
+}
+
+const imageFieldConfig = [
+  { key: 'mainImage', label: 'Main image' },
+  { key: 'image2', label: 'Image 2' },
+  { key: 'image3', label: 'Image 3' },
+  { key: 'image4', label: 'Image 4' },
+  { key: 'image5', label: 'Image 5' },
+  { key: 'image6', label: 'Image 6' },
+  { key: 'image7', label: 'Image 7' },
+  { key: 'image8', label: 'Image 8' },
+  { key: 'image9', label: 'Image 9' },
+  { key: 'image10', label: 'Image 10' },
+]
 
 function getPageFromHash() {
   const hash = window.location.hash.replace('#', '')
+  if (hash.startsWith('listing/')) {
+    return 'listing'
+  }
   return pageLabels[hash] ? hash : 'home'
+}
+
+function getListingIdFromHash() {
+  const hash = window.location.hash.replace('#', '')
+  if (!hash.startsWith('listing/')) {
+    return ''
+  }
+
+  return decodeURIComponent(hash.slice('listing/'.length))
 }
 
 function App() {
   const [page, setPage] = useState(getPageFromHash)
-  const [formData, setFormData] = useState({
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    price: '',
-    bedrooms: '',
-    bathrooms: '',
-    squareFeet: '',
-    propertyType: 'Single Family',
-    description: '',
+  const [activeListingId, setActiveListingId] = useState(getListingIdFromHash)
+  const [listings, setListings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [formData, setFormData] = useState(initialFormData)
+  const [imageFiles, setImageFiles] = useState({
+    mainImage: null,
+    galleryImages: [],
   })
-  const [photos, setPhotos] = useState([])
-  const [message, setMessage] = useState('')
+  const [selectedListingId, setSelectedListingId] = useState('')
+  const [manageMessage, setManageMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [removing, setRemoving] = useState(false)
 
   useEffect(() => {
-    const handleHashChange = () => setPage(getPageFromHash())
+    const handleHashChange = () => {
+      setPage(getPageFromHash())
+      setActiveListingId(getListingIdFromHash())
+    }
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  function navigate(nextPage) {
-    window.location.hash = nextPage
+  useEffect(() => {
+    fetchListings()
+  }, [])
+
+  async function fetchListings() {
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch(WEB_APP_URL)
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Unable to load listings.')
+      }
+
+      const nextListings = Array.isArray(data.listings) ? data.listings : []
+      setListings(nextListings)
+      setSelectedListingId((current) => {
+        if (nextListings.some((listing) => listing.listingId === current)) {
+          return current
+        }
+        return nextListings[0]?.listingId || ''
+      })
+    } catch (fetchError) {
+      setError(fetchError.message || 'Unable to load listings.')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  function navigate(nextPage) {
+    if (submitting) return
+    window.location.hash = nextPage
+    if (nextPage === 'listings') {
+      fetchListings()
+    }
+  }
+
+  function navigateToListing(listingId) {
+    if (submitting) return
+    window.location.hash = `listing/${encodeURIComponent(listingId)}`
+  }
+
+  const activeListing = listings.find((listing) => listing.listingId === activeListingId) || null
 
   function handleInputChange(event) {
     const { name, value } = event.target
@@ -86,36 +133,100 @@ function App() {
     }))
   }
 
-  function handlePhotoChange(event) {
-    const files = Array.from(event.target.files || [])
-    if (files.length > 10) {
-      setMessage('Please select 10 photos or fewer for a single listing.')
-      setPhotos(files.slice(0, 10))
+  function handleMainImageChange(event) {
+    const file = event.target.files?.[0] || null
+    if (file && !isSupportedImageFile(file)) {
+      setManageMessage('Main image must be JPG, PNG, or WebP.')
+      event.target.value = ''
       return
     }
 
-    setPhotos(files)
-    setMessage(
-      files.length
-        ? `${files.length} photo${files.length === 1 ? '' : 's'} selected.`
-        : '',
-    )
+    setImageFiles((current) => ({
+      ...current,
+      mainImage: file,
+    }))
+    setManageMessage('')
   }
 
-  function handleSubmit(event) {
+  function handleGalleryImagesChange(event) {
+    const files = Array.from(event.target.files || []).slice(0, 9)
+    const hasUnsupportedFile = files.some((file) => !isSupportedImageFile(file))
+
+    if (hasUnsupportedFile) {
+      setManageMessage('Additional images must be JPG, PNG, or WebP.')
+      event.target.value = ''
+      return
+    }
+
+    setImageFiles((current) => ({
+      ...current,
+      galleryImages: files,
+    }))
+    setManageMessage('')
+  }
+
+  async function handleCreateListing(event) {
     event.preventDefault()
-    setMessage(
-      `Listing draft saved for ${formData.address || 'the property'}. Connect this form to your backend when you are ready to store submissions.`,
-    )
+    setSubmitting(true)
+    setManageMessage('')
+
+    try {
+      const images = await buildImagePayload(imageFiles)
+      const payload = {
+        action: 'createListing',
+        ...formData,
+        images,
+      }
+
+      submitToWebApp(payload)
+      setManageMessage('Listing request sent. Refreshing active listings...')
+      setFormData(initialFormData)
+      setImageFiles(createEmptyImageState())
+      await wait(1200)
+      await fetchListings()
+    } catch (submitError) {
+      setManageMessage(submitError.message || 'Unable to create listing.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleRemoveListing() {
+    if (!selectedListingId) {
+      setManageMessage('Select a listing to remove.')
+      return
+    }
+
+    setRemoving(true)
+    setManageMessage('')
+
+    try {
+      submitToWebApp({
+        action: 'unlistListing',
+        listingId: selectedListingId,
+      })
+      setManageMessage(`Remove request sent for ${selectedListingId}. Refreshing active listings...`)
+      await wait(1200)
+      await fetchListings()
+    } catch (removeError) {
+      setManageMessage(removeError.message || 'Unable to remove listing.')
+    } finally {
+      setRemoving(false)
+    }
   }
 
   return (
     <div className="site-shell">
+      {submitting && (
+        <div className="blocking-overlay" role="status" aria-live="polite">
+          <div className="blocking-card">Creating listing... please wait.</div>
+        </div>
+      )}
       <header className="site-header">
         <div>
           <p className="brand-kicker">Desaree Stevens Realty</p>
           <a className="brand" href="#home" onClick={() => navigate('home')}>
-            Elevated guidance for Colorado buyers and sellers
+            United Realty Group | Las Vegas real estate expertise
           </a>
         </div>
         <nav className="nav">
@@ -124,7 +235,10 @@ function App() {
               key={key}
               className={page === key ? 'nav-link active' : 'nav-link'}
               href={`#${key}`}
-              onClick={() => navigate(key)}
+              onClick={(event) => {
+                event.preventDefault()
+                navigate(key)
+              }}
             >
               {label}
             </a>
@@ -134,15 +248,40 @@ function App() {
 
       <main>
         {page === 'home' && <HomePage navigate={navigate} />}
-        {page === 'listings' && <ListingsPage />}
-        {page === 'upload' && (
-          <UploadPage
+        {page === 'listings' && (
+          <ListingsPage
+            listings={listings}
+            loading={loading}
+            error={error}
+            onSelectListing={navigateToListing}
+          />
+        )}
+        {page === 'listing' && (
+          <ListingDetailPage
+            listing={activeListing}
+            loading={loading}
+            error={error}
+            onBack={() => navigate('listings')}
+          />
+        )}
+        {page === 'manage' && (
+          <ManageListingsPage
             formData={formData}
-            photos={photos}
-            message={message}
+            imageFiles={imageFiles}
+            listings={listings}
+            loading={loading}
+            error={error}
+            manageMessage={manageMessage}
+            removing={removing}
+            selectedListingId={selectedListingId}
+            submitting={submitting}
+            onCreateListing={handleCreateListing}
+            onGalleryImagesChange={handleGalleryImagesChange}
+            onMainImageChange={handleMainImageChange}
             onInputChange={handleInputChange}
-            onPhotoChange={handlePhotoChange}
-            onSubmit={handleSubmit}
+            onRefresh={fetchListings}
+            onRemoveListing={handleRemoveListing}
+            onSelectListing={setSelectedListingId}
           />
         )}
       </main>
@@ -167,8 +306,8 @@ function HomePage({ navigate }) {
             <button type="button" className="primary-button" onClick={() => navigate('listings')}>
               Browse current listings
             </button>
-            <button type="button" className="secondary-button" onClick={() => navigate('upload')}>
-              Add a new listing
+            <button type="button" className="secondary-button" onClick={() => navigate('manage')}>
+              Manage listings
             </button>
           </div>
         </div>
@@ -291,202 +430,596 @@ function HomePage({ navigate }) {
   )
 }
 
-function ListingsPage() {
+function ListingsPage({ listings, loading, error, onSelectListing }) {
   return (
     <div className="page-stack">
       <section className="section-heading">
         <p className="section-label">Current portfolio</p>
         <h1>Available listings</h1>
         <p className="section-copy">
-          Showcase active properties here. Right now the page uses sample data,
-          so it is ready for backend integration or a CMS connection later.
+          This page reads directly from the Google Sheet and only shows listings
+          whose latest status is <strong>listed</strong>.
         </p>
       </section>
 
-      <section className="listing-grid">
-        {listings.map((listing) => (
-          <article key={listing.id} className="listing-card">
-            <div className="listing-image">
-              <span>{listing.status}</span>
-            </div>
-            <div className="listing-content">
-              <div className="listing-header">
-                <div>
-                  <h2>{listing.title}</h2>
-                  <p>{listing.location}</p>
+      {loading && <section className="status-panel">Loading listings...</section>}
+      {error && !loading && <section className="status-panel error-panel">{error}</section>}
+      {!loading && !error && listings.length === 0 && (
+        <section className="status-panel">No active listings are available yet.</section>
+      )}
+
+      {!loading && !error && listings.length > 0 && (
+        <section className="listing-grid">
+          {listings.map((listing) => (
+            <button
+              key={listing.listingId}
+              type="button"
+              className="listing-card listing-card-button"
+              onClick={() => onSelectListing(listing.listingId)}
+            >
+              <div className="listing-image">
+                {normalizeImageUrl(listing.mainImage) && (
+                  <img
+                    src={normalizeImageUrl(listing.mainImage)}
+                    alt={listing.title || listing.address || 'Listing photo'}
+                    className="listing-rendered-image"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <span>{listing.propertyType || 'Listing'}</span>
+              </div>
+              <div className="listing-content">
+                <div className="listing-header">
+                  <div>
+                    <h2>{listing.title || listing.address || listing.listingId}</h2>
+                    <p>{formatLocation(listing)}</p>
+                  </div>
+                  <strong>{formatPrice(listing.price)}</strong>
                 </div>
-                <strong>{listing.price}</strong>
+                <div className="listing-meta">
+                  <span>{listing.bedrooms || '-'} bd</span>
+                  <span>{listing.bathrooms || '-'} ba</span>
+                  <span>{listing.squareFeet || '-'} sq ft</span>
+                </div>
+                <p className="listing-description">{listing.description || 'No description provided.'}</p>
+                <p className="listing-id">Listing ID: {listing.listingId}</p>
+                <span className="listing-link">View property details</span>
               </div>
-              <div className="listing-meta">
-                <span>{listing.beds} bd</span>
-                <span>{listing.baths} ba</span>
-                <span>{listing.sqft} sq ft</span>
-              </div>
-              <p className="listing-description">{listing.description}</p>
-            </div>
-          </article>
-        ))}
-      </section>
+            </button>
+          ))}
+        </section>
+      )}
     </div>
   )
 }
 
-function UploadPage({
+function ListingDetailPage({ listing, loading, error, onBack }) {
+  const [activeImageIndex, setActiveImageIndex] = useState(-1)
+
+  if (loading) {
+    return (
+      <div className="page-stack">
+        <section className="status-panel">Loading property details...</section>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="page-stack">
+        <section className="status-panel error-panel">{error}</section>
+      </div>
+    )
+  }
+
+  if (!listing) {
+    return (
+      <div className="page-stack">
+        <section className="status-panel">That listing could not be found.</section>
+      </div>
+    )
+  }
+
+  const mainImage = normalizeImageUrl(listing.mainImage)
+  const otherImages = (listing.images || []).map(normalizeImageUrl).filter(Boolean)
+  const galleryImages = Array.from(new Set([mainImage, ...otherImages].filter(Boolean)))
+  const hasLightboxOpen = activeImageIndex >= 0 && !!galleryImages[activeImageIndex]
+
+  useEffect(() => {
+    if (!hasLightboxOpen) return undefined
+
+    function handleKeydown(event) {
+      if (event.key === 'Escape') {
+        setActiveImageIndex(-1)
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        setActiveImageIndex((current) => (current + 1) % galleryImages.length)
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        setActiveImageIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+    return () => window.removeEventListener('keydown', handleKeydown)
+  }, [galleryImages.length, hasLightboxOpen])
+
+  return (
+    <div className="page-stack">
+      <section className="section-heading detail-heading">
+        <button type="button" className="secondary-button" onClick={onBack}>
+          Back to listings
+        </button>
+        <p className="section-label">Property spotlight</p>
+        <h1>{listing.title || listing.address || listing.listingId}</h1>
+        <p className="section-copy">
+          {formatLocation(listing)} {listing.listingId ? `| ${listing.listingId}` : ''}
+        </p>
+      </section>
+
+      <section className="detail-hero">
+        <button
+          type="button"
+          className="detail-main-image image-click-target"
+          onClick={() => setActiveImageIndex(0)}
+        >
+          {galleryImages[0] && (
+            <img
+              src={galleryImages[0]}
+              alt={listing.title || listing.address || 'Property main image'}
+              className="listing-rendered-image"
+              referrerPolicy="no-referrer"
+            />
+          )}
+        </button>
+        <div className="detail-summary">
+          <p className="section-label">Listing overview</p>
+          <strong className="detail-price">{formatPrice(listing.price)}</strong>
+          <div className="detail-stats">
+            <span>{listing.bedrooms || '-'} Bedrooms</span>
+            <span>{listing.bathrooms || '-'} Bathrooms</span>
+            <span>{listing.squareFeet || '-'} Sq Ft</span>
+            <span>{listing.propertyType || 'Property'}</span>
+          </div>
+          <p className="hero-text">
+            {listing.description || 'No additional description has been provided for this property yet.'}
+          </p>
+        </div>
+      </section>
+
+      {galleryImages.length > 0 && (
+        <section className="education-section">
+          <div>
+            <p className="section-label">Image gallery</p>
+            <h2>More views of the property.</h2>
+          </div>
+          <div className="detail-gallery">
+            {galleryImages.map((image, index) => (
+              <button
+                key={`${listing.listingId}-${index}`}
+                type="button"
+                className="detail-gallery-image image-click-target"
+                onClick={() => setActiveImageIndex(index)}
+              >
+                {image && (
+                  <img
+                    src={image}
+                    alt={`Property gallery image ${index + 1}`}
+                    className="listing-rendered-image"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hasLightboxOpen && (
+        <div className="lightbox-overlay" onClick={() => setActiveImageIndex(-1)} role="presentation">
+          <div
+            className="lightbox-content"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <button
+              type="button"
+              className="lightbox-close"
+              onClick={() => setActiveImageIndex(-1)}
+              aria-label="Close image viewer"
+            >
+              ×
+            </button>
+            <img
+              src={galleryImages[activeImageIndex]}
+              alt={`Property image ${activeImageIndex + 1}`}
+              className="lightbox-image"
+              referrerPolicy="no-referrer"
+            />
+            <div className="lightbox-controls">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setActiveImageIndex((current) => (current - 1 + galleryImages.length) % galleryImages.length)
+                }
+              >
+                Previous
+              </button>
+              <span className="lightbox-counter">
+                {activeImageIndex + 1} / {galleryImages.length}
+              </span>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() =>
+                  setActiveImageIndex((current) => (current + 1) % galleryImages.length)
+                }
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ManageListingsPage({
   formData,
-  photos,
-  message,
+  imageFiles,
+  listings,
+  loading,
+  error,
+  manageMessage,
+  removing,
+  selectedListingId,
+  submitting,
+  onCreateListing,
+  onGalleryImagesChange,
+  onMainImageChange,
   onInputChange,
-  onPhotoChange,
-  onSubmit,
+  onRefresh,
+  onRemoveListing,
+  onSelectListing,
 }) {
   return (
     <div className="page-stack">
       <section className="section-heading">
         <p className="section-label">Listing management</p>
-        <h1>Upload a new property</h1>
+        <h1>Manage listings</h1>
         <p className="section-copy">
-          Capture the core details for a home listing and attach up to 10
-          photos. This form currently handles the client-side experience and is
-          ready to connect to storage or a backend endpoint.
+          Create a new listing entry or mark an existing listing as unlisted.
+          New listings can include one main image and up to nine additional
+          images.
         </p>
       </section>
 
-      <form className="listing-form" onSubmit={onSubmit}>
-        <div className="form-grid">
-          <label>
-            Street address
-            <input
-              name="address"
-              value={formData.address}
-              onChange={onInputChange}
-              placeholder="1234 Elm Street"
-              required
-            />
-          </label>
-          <label>
-            City
-            <input
-              name="city"
-              value={formData.city}
-              onChange={onInputChange}
-              placeholder="Denver"
-              required
-            />
-          </label>
-          <label>
-            State
-            <input
-              name="state"
-              value={formData.state}
-              onChange={onInputChange}
-              placeholder="CO"
-              required
-            />
-          </label>
-          <label>
-            ZIP code
-            <input
-              name="zip"
-              value={formData.zip}
-              onChange={onInputChange}
-              placeholder="80206"
-              required
-            />
-          </label>
-          <label>
-            List price
-            <input
-              name="price"
-              value={formData.price}
-              onChange={onInputChange}
-              placeholder="$650,000"
-              required
-            />
-          </label>
-          <label>
-            Bedrooms
-            <input
-              name="bedrooms"
-              type="number"
-              min="0"
-              value={formData.bedrooms}
-              onChange={onInputChange}
-              required
-            />
-          </label>
-          <label>
-            Bathrooms
-            <input
-              name="bathrooms"
-              type="number"
-              min="0"
-              step="0.5"
-              value={formData.bathrooms}
-              onChange={onInputChange}
-              required
-            />
-          </label>
-          <label>
-            Square feet
-            <input
-              name="squareFeet"
-              type="number"
-              min="0"
-              value={formData.squareFeet}
-              onChange={onInputChange}
-              required
-            />
-          </label>
-          <label className="full-width">
-            Property type
-            <select
-              name="propertyType"
-              value={formData.propertyType}
-              onChange={onInputChange}
-            >
-              <option>Single Family</option>
-              <option>Townhome</option>
-              <option>Condo</option>
-              <option>Multi-Family</option>
-              <option>Land</option>
-            </select>
-          </label>
-          <label className="full-width">
-            Property description
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={onInputChange}
-              rows="6"
-              placeholder="Highlight condition, layout, updates, neighborhood benefits, and standout features."
-              required
-            />
-          </label>
-          <label className="full-width upload-field">
-            Listing photos
-            <input type="file" accept="image/*" multiple onChange={onPhotoChange} />
-            <small>Upload up to 10 images.</small>
-          </label>
-        </div>
-
-        {photos.length > 0 && (
-          <div className="photo-list">
-            {photos.map((photo) => (
-              <span key={`${photo.name}-${photo.lastModified}`} className="photo-pill">
-                {photo.name}
-              </span>
-            ))}
+      <section className="manage-layout">
+        <form className="listing-form" onSubmit={onCreateListing}>
+          <div className="manage-header-row">
+            <h2>Create a listing</h2>
           </div>
-        )}
+          <div className="form-grid">
+            <label>
+              Listing title
+              <input
+                name="title"
+                value={formData.title}
+                onChange={onInputChange}
+                placeholder="Modern Summerlin Retreat"
+                required
+              />
+            </label>
+            <label>
+              Street address
+              <input
+                name="address"
+                value={formData.address}
+                onChange={onInputChange}
+                placeholder="1234 Elm Street"
+                required
+              />
+            </label>
+            <label>
+              City
+              <input
+                name="city"
+                value={formData.city}
+                onChange={onInputChange}
+                placeholder="Las Vegas"
+                required
+              />
+            </label>
+            <label>
+              State
+              <input name="state" value={formData.state} onChange={onInputChange} required />
+            </label>
+            <label>
+              ZIP code
+              <input
+                name="zip"
+                value={formData.zip}
+                onChange={onInputChange}
+                placeholder="89101"
+                required
+              />
+            </label>
+            <label>
+              List price
+              <input
+                name="price"
+                value={formData.price}
+                onChange={onInputChange}
+                placeholder="525000"
+                required
+              />
+            </label>
+            <label>
+              Bedrooms
+              <input
+                name="bedrooms"
+                type="number"
+                min="0"
+                value={formData.bedrooms}
+                onChange={onInputChange}
+                required
+              />
+            </label>
+            <label>
+              Bathrooms
+              <input
+                name="bathrooms"
+                type="number"
+                min="0"
+                step="0.5"
+                value={formData.bathrooms}
+                onChange={onInputChange}
+                required
+              />
+            </label>
+            <label>
+              Square feet
+              <input
+                name="squareFeet"
+                type="number"
+                min="0"
+                value={formData.squareFeet}
+                onChange={onInputChange}
+                required
+              />
+            </label>
+            <label className="full-width">
+              Property type
+              <select
+                name="propertyType"
+                value={formData.propertyType}
+                onChange={onInputChange}
+              >
+                <option>Single Family</option>
+                <option>Townhome</option>
+                <option>Condo</option>
+                <option>Multi-Family</option>
+                <option>Land</option>
+              </select>
+            </label>
+            <label className="full-width">
+              Property description
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={onInputChange}
+                rows="6"
+                placeholder="Highlight the layout, updates, lot features, and neighborhood benefits."
+                required
+              />
+            </label>
+          </div>
 
-        {message && <p className="form-message">{message}</p>}
+          <div className="image-upload-grid">
+            <div className="upload-tile">
+              <span>Main image</span>
+              <input
+                className="upload-native-input"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                onChange={onMainImageChange}
+              />
+              <small>{imageFiles.mainImage?.name || 'No main image selected'}</small>
+            </div>
 
-        <button type="submit" className="primary-button">
-          Save listing draft
-        </button>
-      </form>
+            <div className="upload-tile">
+              <span>Additional images</span>
+              <input
+                className="upload-native-input"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                multiple
+                onChange={onGalleryImagesChange}
+              />
+              <small>
+                {imageFiles.galleryImages.length
+                  ? `${imageFiles.galleryImages.length} additional image${
+                      imageFiles.galleryImages.length === 1 ? '' : 's'
+                    } selected`
+                  : 'Select up to 9 additional images'}
+              </small>
+            </div>
+          </div>
+
+          {manageMessage && <p className="form-message">{manageMessage}</p>}
+
+          <button type="submit" className="primary-button" disabled={submitting}>
+            {submitting ? 'Saving listing...' : 'Create listing'}
+          </button>
+        </form>
+
+        <section className="listing-form manage-side-panel">
+          <div className="manage-header-row">
+            <h2>Active listings</h2>
+            <button type="button" className="secondary-button" onClick={onRefresh}>
+              Refresh
+            </button>
+          </div>
+
+          {loading && <p className="form-message">Loading listings...</p>}
+          {error && !loading && <p className="form-message">{error}</p>}
+          {!loading && !error && listings.length === 0 && (
+            <p className="form-message">No active listings to manage.</p>
+          )}
+
+          {!loading && !error && listings.length > 0 && (
+            <div className="manage-list">
+              {listings.map((listing) => (
+                <label key={listing.listingId} className="manage-item">
+                  <input
+                    type="radio"
+                    name="selectedListing"
+                    checked={selectedListingId === listing.listingId}
+                    onChange={() => onSelectListing(listing.listingId)}
+                  />
+                  <div>
+                    <strong>{listing.title || listing.address || listing.listingId}</strong>
+                    <p>{formatLocation(listing)}</p>
+                    <small>{listing.listingId}</small>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="danger-button"
+            disabled={!selectedListingId || removing}
+            onClick={onRemoveListing}
+          >
+            {removing ? 'Removing listing...' : 'Remove listing'}
+          </button>
+        </section>
+      </section>
     </div>
   )
+}
+
+function createEmptyImageState() {
+  return {
+    mainImage: null,
+    galleryImages: [],
+  }
+}
+
+async function buildImagePayload(imageFiles) {
+  const payload = {
+    mainImage: imageFiles.mainImage
+      ? await fileToDataUrl(imageFiles.mainImage)
+      : '',
+  }
+
+  const galleryKeys = imageFieldConfig.slice(1).map((field) => field.key)
+
+  for (let index = 0; index < galleryKeys.length; index += 1) {
+    const key = galleryKeys[index]
+    const file = imageFiles.galleryImages[index]
+    payload[key] = file ? await fileToDataUrl(file) : ''
+  }
+
+  return payload
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error(`Unable to read ${file.name}.`))
+    reader.readAsDataURL(file)
+  })
+}
+
+function isSupportedImageFile(file) {
+  const supportedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (supportedTypes.includes(file.type)) return true
+
+  return /\.(jpe?g|png|webp)$/i.test(file.name || '')
+}
+
+function submitToWebApp(payload) {
+  const iframeName = 'apps-script-submit-target'
+  let iframe = document.querySelector(`iframe[name="${iframeName}"]`)
+
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.name = iframeName
+    iframe.className = 'hidden-submit-frame'
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.tabIndex = -1
+    document.body.appendChild(iframe)
+  }
+
+  const form = document.createElement('form')
+  form.method = 'POST'
+  form.action = WEB_APP_URL
+  form.target = iframeName
+  form.style.display = 'none'
+
+  const input = document.createElement('input')
+  input.type = 'hidden'
+  input.name = 'payload'
+  input.value = JSON.stringify(payload)
+  form.appendChild(input)
+
+  document.body.appendChild(form)
+  form.submit()
+  document.body.removeChild(form)
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+function formatLocation(listing) {
+  return [listing.address, listing.city, listing.state, listing.zip]
+    .filter(Boolean)
+    .join(', ')
+}
+
+function formatPrice(price) {
+  if (!price) return 'Price on request'
+
+  const numeric = Number(String(price).replace(/[^0-9.]/g, ''))
+  if (Number.isNaN(numeric) || numeric === 0) {
+    return price
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(numeric)
+}
+
+function normalizeImageUrl(url) {
+  if (!url) return ''
+
+  const trimmed = String(url).trim()
+
+  const fileIdFromPath = trimmed.match(/\/file\/d\/([^/?]+)/)?.[1]
+  const fileIdFromQuery = trimmed.match(/[?&]id=([^&]+)/)?.[1]
+  const fileId = fileIdFromPath || fileIdFromQuery
+
+  if (fileId) {
+    return `https://lh3.googleusercontent.com/d/${fileId}=w2000`
+  }
+
+  return trimmed
 }
 
 export default App
