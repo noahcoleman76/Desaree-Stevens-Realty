@@ -7,7 +7,7 @@ const WEB_APP_URL =
 const pageLabels = {
   home: 'Home',
   listings: 'Listings',
-  manage: 'Manage Listings',
+  contact: 'Contact',
 }
 
 const initialFormData = {
@@ -42,6 +42,9 @@ function getPageFromHash() {
   if (hash.startsWith('listing/')) {
     return 'listing'
   }
+  if (hash === 'manage') {
+    return 'manage'
+  }
   return pageLabels[hash] ? hash : 'home'
 }
 
@@ -57,6 +60,7 @@ function getListingIdFromHash() {
 function App() {
   const [page, setPage] = useState(getPageFromHash)
   const [activeListingId, setActiveListingId] = useState(getListingIdFromHash)
+  const [isNavOpen, setIsNavOpen] = useState(false)
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -74,6 +78,7 @@ function App() {
     const handleHashChange = () => {
       setPage(getPageFromHash())
       setActiveListingId(getListingIdFromHash())
+      setIsNavOpen(false)
     }
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
@@ -112,6 +117,7 @@ function App() {
 
   function navigate(nextPage) {
     if (submitting) return
+    setIsNavOpen(false)
     window.location.hash = nextPage
     if (nextPage === 'listings') {
       fetchListings()
@@ -224,12 +230,23 @@ function App() {
       )}
       <header className="site-header">
         <div>
-          <p className="brand-kicker">Desaree Stevens Realty</p>
+          <p className="brand-kicker">Desaree Stevens</p>
           <a className="brand" href="#home" onClick={() => navigate('home')}>
-            United Realty Group | Las Vegas real estate expertise
+            United Realty Group
           </a>
         </div>
-        <nav className="nav">
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-expanded={isNavOpen}
+          aria-label="Toggle navigation menu"
+          onClick={() => setIsNavOpen((current) => !current)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <nav className={isNavOpen ? 'nav nav-open' : 'nav'}>
           {Object.entries(pageLabels).map(([key, label]) => (
             <a
               key={key}
@@ -247,7 +264,13 @@ function App() {
       </header>
 
       <main>
-        {page === 'home' && <HomePage navigate={navigate} />}
+        {page === 'home' && (
+          <HomePage
+            navigate={navigate}
+            listings={listings}
+            onSelectListing={navigateToListing}
+          />
+        )}
         {page === 'listings' && (
           <ListingsPage
             listings={listings}
@@ -284,72 +307,109 @@ function App() {
             onSelectListing={setSelectedListingId}
           />
         )}
+        {page === 'contact' && <ContactPage />}
       </main>
+      <SiteFooter />
     </div>
   )
 }
 
-function HomePage({ navigate }) {
+function HomePage({ navigate, listings, onSelectListing }) {
   return (
     <div className="page-stack">
       <section className="hero">
         <div className="hero-copy">
-          <p className="section-label">United Realty Group</p>
-          <h1>Las Vegas real estate guidance built on local roots and steady support.</h1>
+          <p className="section-label">Las Vegas Real Estate</p>
+          <h1>Local guidance. Clear strategy. Real results.</h1>
           <p className="hero-text">
-            Desaree Stevens has called Las Vegas home since 1987 and has been
-            helping clients navigate the local real estate market since 1999.
-            Her process is practical, attentive, and shaped around real client
-            needs from first conversation to closing day.
+            Real estate support that stays practical, responsive, and focused
+            on your goals from first tour to final close.
           </p>
           <div className="hero-actions">
-            <button type="button" className="primary-button" onClick={() => navigate('listings')}>
+            <button
+              type="button"
+              className="primary-button hero-primary-button"
+              onClick={() => navigate('listings')}
+            >
               Browse current listings
             </button>
-            <button type="button" className="secondary-button" onClick={() => navigate('manage')}>
-              Manage listings
-            </button>
-          </div>
-        </div>
-
-        <div className="hero-panel">
-          <div className="metric">
-            <span className="metric-value">Since 1999</span>
-            <span className="metric-label">Serving buyers and sellers across Las Vegas</span>
-          </div>
-          <div className="metric">
-            <span className="metric-value">Las Vegas</span>
-            <span className="metric-label">Deep neighborhood knowledge built from decades in the city</span>
-          </div>
-          <div className="metric">
-            <span className="metric-value">Family-first</span>
-            <span className="metric-label">Professional service with the care and consistency clients remember</span>
           </div>
         </div>
       </section>
+
+      <MlsSearchSection navigate={navigate} />
 
       <section className="info-grid">
         <article className="info-card">
           <p className="section-label">About Desaree</p>
           <h2>A trusted Las Vegas advocate with deep community ties.</h2>
           <p>
-            As the spouse of an Army veteran, Desaree served as a dedicated
-            family support coordinator during her husband&apos;s military service.
-            That commitment to service carries into her work today, alongside
-            the perspective that comes from raising a son and daughter and
-            building long-standing roots in Las Vegas.
+            Desaree has been a resident since 1987 and has guided Las Vegas
+            buyers and sellers since 1999 with local insight, clear
+            communication, and steady support.
           </p>
         </article>
         <article className="info-card accent-card">
           <p className="section-label">How she works</p>
           <h2>Experienced guidance without pressure or confusion.</h2>
           <p>
-            Desaree helps clients move through the buying and selling process
-            with patience, professionalism, and clear communication. Her goal
-            is not just to close a transaction, but to make the experience feel
-            manageable, informed, and personal.
+            Her focus is simple: smart pricing, clear options, and a smoother
+            process from first showing to closing.
           </p>
         </article>
+      </section>
+
+      <section className="education-section snapshot-section">
+        <div className="snapshot-header">
+          <p className="section-label">Listing Snapshot</p>
+          <h2>See Current Listings</h2>
+        </div>
+        {listings.length === 0 ? (
+          <p className="section-copy">No active listings available yet.</p>
+        ) : (
+          <div className="snapshot-row">
+            {listings.map((listing) => (
+              <button
+                key={listing.listingId}
+                type="button"
+                className="snapshot-card"
+                onClick={() => onSelectListing(listing.listingId)}
+              >
+                <div className="snapshot-image-wrap">
+                  {normalizeImageUrl(listing.mainImage) && (
+                    <img
+                      src={normalizeImageUrl(listing.mainImage)}
+                      alt={listing.title || listing.address || 'Listing snapshot'}
+                      className="snapshot-image"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                </div>
+                <div className="snapshot-content">
+                  <strong>{listing.title || listing.address || listing.listingId}</strong>
+                  <p>{formatPrice(listing.price)}</p>
+                  <p>{formatLocation(listing)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="snapshot-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => navigate('listings')}
+          >
+            See All
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => navigate('contact')}
+          >
+            Contact Desaree
+          </button>
+        </div>
       </section>
 
       <section className="education-section">
@@ -382,7 +442,7 @@ function HomePage({ navigate }) {
         </div>
       </section>
 
-      <section className="education-section">
+      <section className="education-section reviews-section">
         <div>
           <p className="section-label">Customer testimonials</p>
           <h2>What clients say about working with Desaree.</h2>
@@ -430,16 +490,159 @@ function HomePage({ navigate }) {
   )
 }
 
+function MlsSearchSection({ navigate }) {
+  const [query, setQuery] = useState('Las Vegas, NV')
+
+  function buildUrls(value) {
+    const encoded = encodeURIComponent(value.trim() || 'Las Vegas, NV')
+    return {
+      zillow: `https://www.zillow.com/homes/${encoded}_rb/`,
+      redfin: 'https://www.redfin.com/city/10201/NV/Las-Vegas',
+      realtor: `https://www.realtor.com/realestateandhomes-search/${encoded}`,
+    }
+  }
+
+  const urls = buildUrls(query)
+
+  return (
+    <section className="education-section mls-section">
+      <div>
+        <p className="section-label">MLS Search</p>
+        <h2>Start browsing homes now.</h2>
+      </div>
+      <div className="mls-search-panel">
+        <label className="mls-search-label">
+          Area, city, or ZIP
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Las Vegas, NV"
+          />
+        </label>
+        <div className="mls-actions">
+          <a className="secondary-button mls-link" href={urls.zillow} target="_blank" rel="noreferrer">
+            Search Zillow
+          </a>
+          <a className="secondary-button mls-link" href={urls.realtor} target="_blank" rel="noreferrer">
+            Search Realtor.com
+          </a>
+          <a className="secondary-button mls-link" href={urls.redfin} target="_blank" rel="noreferrer">
+            Search Redfin
+          </a>
+        </div>
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => navigate('contact')}
+        >
+          Contact Desaree
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function ContactPage() {
+  return (
+    <div className="page-stack">
+      <section className="section-heading">
+        <p className="section-label">Contact</p>
+        <h1>Contact Desaree</h1>
+        <p className="section-copy">
+          Reach out to discuss buying, selling, or your next steps in Las
+          Vegas real estate.
+        </p>
+      </section>
+
+      <section className="education-section contact-card">
+        <h2>Get in touch</h2>
+        <p>Cell: (702) 349-7123</p>
+        <p>Office: (702) 331-7870</p>
+        <p>Email: Dstevenshms@gmail.com</p>
+        <p>Office: 2389 Renaissance Dr., Suite A, Las Vegas, NV 89119</p>
+      </section>
+    </div>
+  )
+}
+
+function SiteFooter() {
+  return (
+    <footer className="site-footer">
+      <div className="footer-grid">
+        <a
+          className="footer-photo-wrap"
+          href="https://www.unitedrealtylv.com/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <img
+            src="/urglogo.webp"
+            alt="United Realty Group logo"
+            className="footer-photo"
+          />
+        </a>
+        <div className="footer-block">
+          <h3>Contact</h3>
+          <p>
+            Cell:{' '}
+            <a href="tel:+17023497123">
+              (702) 349-7123
+            </a>
+          </p>
+          <p>
+            Office:{' '}
+            <a href="tel:+17023317870">
+              (702) 331-7870
+            </a>
+          </p>
+          <p>
+            Email:{' '}
+            <a href="mailto:Dstevenshms@gmail.com">
+              Dstevenshms@gmail.com
+            </a>
+          </p>
+          <p>
+            Office Address:{' '}
+            <a
+              href="https://maps.google.com/?q=2389+Renaissance+Dr,+Suite+A,+Las+Vegas,+NV+89119"
+              target="_blank"
+              rel="noreferrer"
+            >
+              2389 Renaissance Dr., Suite A, Las Vegas, NV 89119
+            </a>
+          </p>
+        </div>
+        <div className="footer-block">
+          <h3>Follow</h3>
+          <a href="https://www.facebook.com/desareeunitedrealty" target="_blank" rel="noreferrer">
+            Facebook
+          </a>
+          <a href="https://www.youtube.com/@UnitedRealtyGroupLasVegas" target="_blank" rel="noreferrer">
+            YouTube
+          </a>
+          <a
+            href="https://www.linkedin.com/company/united-realty-group-las-vegas/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            LinkedIn
+          </a>
+        </div>
+      </div>
+      <div className="footer-badges">
+        <img src="/realtor.png" alt="Equal Housing Opportunity and Realtor logos" className="footer-badge" />
+        <img src="/mls.png" alt="MLS logo" className="footer-badge" />
+      </div>
+    </footer>
+  )
+}
+
 function ListingsPage({ listings, loading, error, onSelectListing }) {
   return (
     <div className="page-stack">
       <section className="section-heading">
         <p className="section-label">Current portfolio</p>
         <h1>Available listings</h1>
-        <p className="section-copy">
-          This page reads directly from the Google Sheet and only shows listings
-          whose latest status is <strong>listed</strong>.
-        </p>
       </section>
 
       {loading && <section className="status-panel">Loading listings...</section>}
