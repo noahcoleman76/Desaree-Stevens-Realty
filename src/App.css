@@ -175,11 +175,6 @@ small,
   color: #4c5f4d;
 }
 
-.listing-read-more {
-  color: #8a673d;
-  font-weight: 700;
-}
-
 .hero-text,
 .section-copy {
   max-width: 45rem;
@@ -502,15 +497,6 @@ small,
     linear-gradient(135deg, #a2c1aa, #ead9bb);
 }
 
-.listing-image::after,
-.detail-main-image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(33, 50, 36, 0.1), rgba(33, 50, 36, 0.55));
-  pointer-events: none;
-}
-
 .listing-image span {
   position: relative;
   z-index: 2;
@@ -569,7 +555,7 @@ small,
 
 .detail-hero {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
@@ -642,12 +628,6 @@ small,
   height: 100%;
   object-fit: cover;
   z-index: 0;
-}
-
-.listing-card-image {
-  object-fit: contain;
-  object-position: center;
-  background: #ece4d7;
 }
 
 .lightbox-overlay {
@@ -883,6 +863,12 @@ textarea {
   font: inherit;
   color: #203020;
   background: #fffdfa;
+}
+
+.input-missing {
+  border-color: #c83f33 !important;
+  background: #fff2f0 !important;
+  box-shadow: 0 0 0 2px rgba(200, 63, 51, 0.14);
 }
 
 input[type='radio'] {

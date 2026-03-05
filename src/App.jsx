@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 const WEB_APP_URL =
-  'https://script.google.com/macros/s/AKfycbzLvlnMFkkzPviQyafW2L1xeF6s7C6N92ByXUuPLsAJ99XWpKRLt_6YC_ohIHOtxS1S/exec'
+  'https://script.google.com/macros/s/AKfycbwGs69fgk1GA0PgaFwt1M0OniBpnrxsS4ihSyumNF_sGKBc5ZFY0mMWfwKoM_R07Hz3/exec'
 
 const pageLabels = {
   home: 'Home',
@@ -24,6 +24,20 @@ const initialFormData = {
   mlsNumber: '',
   description: '',
 }
+
+const requiredListingFields = [
+  'title',
+  'address',
+  'city',
+  'state',
+  'zip',
+  'price',
+  'bedrooms',
+  'bathrooms',
+  'squareFeet',
+  'propertyType',
+  'description',
+]
 
 const imageFieldConfig = [
   { key: 'mainImage', label: 'Main image' },
@@ -96,6 +110,7 @@ function App() {
   const [manageMessage, setManageMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [attemptedCreateSubmit, setAttemptedCreateSubmit] = useState(false)
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -206,10 +221,16 @@ function App() {
 
   async function handleCreateListing(event) {
     event.preventDefault()
+    setAttemptedCreateSubmit(true)
     setSubmitting(true)
     setManageMessage('')
 
     try {
+      const missingFields = getMissingRequiredFields(formData)
+      if (missingFields.length > 0) {
+        throw new Error('Please complete all required fields before creating the listing.')
+      }
+
       const images = await buildImagePayload(imageFiles)
       const payload = {
         action: 'createListing',
@@ -217,10 +238,11 @@ function App() {
         images,
       }
 
-      submitToWebApp(payload)
+      await submitToWebApp(payload)
       setManageMessage('Listing request sent. Refreshing active listings...')
       setFormData(initialFormData)
       setImageFiles(createEmptyImageState())
+      setAttemptedCreateSubmit(false)
       await wait(1200)
       await fetchListings()
     } catch (submitError) {
@@ -240,7 +262,7 @@ function App() {
     setManageMessage('')
 
     try {
-      submitToWebApp({
+      await submitToWebApp({
         action: 'unlistListing',
         listingId: selectedListingId,
       })
@@ -338,6 +360,9 @@ function App() {
             removing={removing}
             selectedListingId={selectedListingId}
             submitting={submitting}
+            missingRequiredFields={
+              attemptedCreateSubmit ? getMissingRequiredFields(formData) : []
+            }
             onCreateListing={handleCreateListing}
             onGalleryImagesChange={handleGalleryImagesChange}
             onMainImageChange={handleMainImageChange}
@@ -709,53 +734,41 @@ function ListingsPage({ listings, loading, error, onSelectListing }) {
 
       {!loading && !error && listings.length > 0 && (
         <section className="listing-grid">
-          {listings.map((listing) => {
-            const descriptionPreview = buildDescriptionPreview(listing.description)
-
-            return (
-              <button
-                key={listing.listingId}
-                type="button"
-                className="listing-card listing-card-button"
-                onClick={() => onSelectListing(listing.listingId)}
-              >
-                <div className="listing-image">
-                  {normalizeImageUrl(listing.mainImage) && (
-                    <img
-                      src={normalizeImageUrl(listing.mainImage)}
-                      alt={listing.title || listing.address || 'Listing photo'}
-                      className="listing-rendered-image listing-card-image"
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  <span>{listing.propertyType || 'Listing'}</span>
-                </div>
-                <div className="listing-content">
-                  <div className="listing-header">
-                    <div>
-                      <h2>{listing.title || listing.address || listing.listingId}</h2>
-                      <p>{formatLocation(listing)}</p>
-                    </div>
-                    <strong>{formatPrice(listing.price)}</strong>
+          {listings.map((listing) => (
+            <button
+              key={listing.listingId}
+              type="button"
+              className="listing-card listing-card-button"
+              onClick={() => onSelectListing(listing.listingId)}
+            >
+              <div className="listing-image">
+                {normalizeImageUrl(listing.mainImage) && (
+                  <img
+                    src={normalizeImageUrl(listing.mainImage)}
+                    alt={listing.title || listing.address || 'Listing photo'}
+                    className="listing-rendered-image"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <span>{listing.propertyType || 'Listing'}</span>
+              </div>
+              <div className="listing-content">
+                <div className="listing-header">
+                  <div>
+                    <h2>{listing.title || listing.address || listing.listingId}</h2>
+                    <p>{formatLocation(listing)}</p>
                   </div>
-                  <div className="listing-meta">
-                    <span>{listing.bedrooms || '-'} bd</span>
-                    <span>{listing.bathrooms || '-'} ba</span>
-                    <span>{listing.squareFeet || '-'} sq ft</span>
-                  </div>
-                  <p className="listing-description">
-                    {descriptionPreview.text}
-                    {descriptionPreview.isTruncated && (
-                      <span className="listing-read-more"> Read more</span>
-                    )}
-                  </p>
-                  <p className="listing-id">Listing ID: {listing.listingId}</p>
-                  {listing.mlsNumber && <p className="listing-id">MLS #: {listing.mlsNumber}</p>}
-                  <span className="listing-link">View property details</span>
+                  <strong>{formatPrice(listing.price)}</strong>
                 </div>
-              </button>
-            )
-          })}
+                <div className="listing-meta">
+                  <span>{listing.bedrooms || '-'} bd</span>
+                  <span>{listing.bathrooms || '-'} ba</span>
+                  <span>{listing.squareFeet || '-'} sq ft</span>
+                </div>
+                <span className="listing-link">View property details</span>
+              </div>
+            </button>
+          ))}
         </section>
       )}
     </div>
@@ -952,6 +965,7 @@ function ManageListingsPage({
   removing,
   selectedListingId,
   submitting,
+  missingRequiredFields,
   onCreateListing,
   onGalleryImagesChange,
   onMainImageChange,
@@ -960,6 +974,8 @@ function ManageListingsPage({
   onRemoveListing,
   onSelectListing,
 }) {
+  const missingFieldSet = new Set(missingRequiredFields)
+
   return (
     <div className="page-stack">
       <section className="section-heading">
@@ -976,6 +992,7 @@ function ManageListingsPage({
             <label>
               Listing title
               <input
+                className={missingFieldSet.has('title') ? 'input-missing' : ''}
                 name="title"
                 value={formData.title}
                 onChange={onInputChange}
@@ -986,6 +1003,7 @@ function ManageListingsPage({
             <label>
               Street address
               <input
+                className={missingFieldSet.has('address') ? 'input-missing' : ''}
                 name="address"
                 value={formData.address}
                 onChange={onInputChange}
@@ -996,6 +1014,7 @@ function ManageListingsPage({
             <label>
               City
               <input
+                className={missingFieldSet.has('city') ? 'input-missing' : ''}
                 name="city"
                 value={formData.city}
                 onChange={onInputChange}
@@ -1005,11 +1024,18 @@ function ManageListingsPage({
             </label>
             <label>
               State
-              <input name="state" value={formData.state} onChange={onInputChange} required />
+              <input
+                className={missingFieldSet.has('state') ? 'input-missing' : ''}
+                name="state"
+                value={formData.state}
+                onChange={onInputChange}
+                required
+              />
             </label>
             <label>
               ZIP code
               <input
+                className={missingFieldSet.has('zip') ? 'input-missing' : ''}
                 name="zip"
                 value={formData.zip}
                 onChange={onInputChange}
@@ -1020,6 +1046,7 @@ function ManageListingsPage({
             <label>
               List price
               <input
+                className={missingFieldSet.has('price') ? 'input-missing' : ''}
                 name="price"
                 value={formData.price}
                 onChange={onInputChange}
@@ -1030,6 +1057,7 @@ function ManageListingsPage({
             <label>
               Bedrooms
               <input
+                className={missingFieldSet.has('bedrooms') ? 'input-missing' : ''}
                 name="bedrooms"
                 type="number"
                 min="0"
@@ -1041,6 +1069,7 @@ function ManageListingsPage({
             <label>
               Bathrooms
               <input
+                className={missingFieldSet.has('bathrooms') ? 'input-missing' : ''}
                 name="bathrooms"
                 type="number"
                 min="0"
@@ -1053,6 +1082,7 @@ function ManageListingsPage({
             <label>
               Square feet
               <input
+                className={missingFieldSet.has('squareFeet') ? 'input-missing' : ''}
                 name="squareFeet"
                 type="number"
                 min="0"
@@ -1064,6 +1094,7 @@ function ManageListingsPage({
             <label className="full-width">
               Property type
               <select
+                className={missingFieldSet.has('propertyType') ? 'input-missing' : ''}
                 name="propertyType"
                 value={formData.propertyType}
                 onChange={onInputChange}
@@ -1087,6 +1118,7 @@ function ManageListingsPage({
             <label className="full-width">
               Property description
               <textarea
+                className={missingFieldSet.has('description') ? 'input-missing' : ''}
                 name="description"
                 value={formData.description}
                 onChange={onInputChange}
@@ -1252,6 +1284,8 @@ function submitToWebApp(payload) {
   document.body.appendChild(form)
   form.submit()
   document.body.removeChild(form)
+
+  return Promise.resolve({ success: true })
 }
 
 function wait(ms) {
@@ -1281,17 +1315,11 @@ function formatPrice(price) {
   }).format(numeric)
 }
 
-function buildDescriptionPreview(description) {
-  const fallbackText = 'No description provided.'
-  const source = String(description || '').trim() || fallbackText
-  const maxLength = 170
-
-  if (source.length <= maxLength) {
-    return { text: source, isTruncated: false }
-  }
-
-  const shortened = source.slice(0, maxLength).replace(/\s+\S*$/, '').trim()
-  return { text: `${shortened}...`, isTruncated: true }
+function getMissingRequiredFields(formData) {
+  return requiredListingFields.filter((fieldName) => {
+    const value = formData[fieldName]
+    return String(value ?? '').trim() === ''
+  })
 }
 
 function normalizeImageUrl(url) {
