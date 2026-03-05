@@ -21,6 +21,7 @@ const initialFormData = {
   bathrooms: '',
   squareFeet: '',
   propertyType: 'Single Family',
+  mlsNumber: '',
   description: '',
 }
 
@@ -37,29 +38,51 @@ const imageFieldConfig = [
   { key: 'image10', label: 'Image 10' },
 ]
 
-function getPageFromHash() {
-  const hash = window.location.hash.replace('#', '')
-  if (hash.startsWith('listing/')) {
-    return 'listing'
-  }
-  if (hash === 'manage') {
-    return 'manage'
-  }
-  return pageLabels[hash] ? hash : 'home'
+function getPathForPage(page) {
+  if (page === 'listings') return '/listings'
+  if (page === 'contact') return '/contact'
+  if (page === 'manage') return '/manage'
+  return '/home'
 }
 
-function getListingIdFromHash() {
-  const hash = window.location.hash.replace('#', '')
-  if (!hash.startsWith('listing/')) {
-    return ''
+function getRouteFromLocation() {
+  const searchParams = new URLSearchParams(window.location.search)
+  const redirectedPath = searchParams.get('p')
+
+  if (redirectedPath) {
+    const decodedPath = decodeURIComponent(redirectedPath)
+    const redirectedQuery = searchParams.get('q')
+    const redirectedSearch = redirectedQuery ? `?${redirectedQuery}` : ''
+    window.history.replaceState(null, '', `${decodedPath}${redirectedSearch}`)
   }
 
-  return decodeURIComponent(hash.slice('listing/'.length))
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
+
+  if (pathname.startsWith('/listing/')) {
+    return {
+      page: 'listing',
+      listingId: decodeURIComponent(pathname.slice('/listing/'.length)),
+    }
+  }
+
+  if (pathname === '/listings') {
+    return { page: 'listings', listingId: '' }
+  }
+
+  if (pathname === '/contact') {
+    return { page: 'contact', listingId: '' }
+  }
+
+  if (pathname === '/manage') {
+    return { page: 'manage', listingId: '' }
+  }
+
+  return { page: 'home', listingId: '' }
 }
 
 function App() {
-  const [page, setPage] = useState(getPageFromHash)
-  const [activeListingId, setActiveListingId] = useState(getListingIdFromHash)
+  const [page, setPage] = useState(() => getRouteFromLocation().page)
+  const [activeListingId, setActiveListingId] = useState(() => getRouteFromLocation().listingId)
   const [isNavOpen, setIsNavOpen] = useState(false)
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -75,13 +98,15 @@ function App() {
   const [removing, setRemoving] = useState(false)
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setPage(getPageFromHash())
-      setActiveListingId(getListingIdFromHash())
+    const handleLocationChange = () => {
+      const nextRoute = getRouteFromLocation()
+      setPage(nextRoute.page)
+      setActiveListingId(nextRoute.listingId)
       setIsNavOpen(false)
     }
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
+    handleLocationChange()
+    window.addEventListener('popstate', handleLocationChange)
+    return () => window.removeEventListener('popstate', handleLocationChange)
   }, [])
 
   useEffect(() => {
@@ -118,7 +143,11 @@ function App() {
   function navigate(nextPage) {
     if (submitting) return
     setIsNavOpen(false)
-    window.location.hash = nextPage
+    const nextPath = getPathForPage(nextPage)
+    window.history.pushState(null, '', nextPath)
+    const nextRoute = getRouteFromLocation()
+    setPage(nextRoute.page)
+    setActiveListingId(nextRoute.listingId)
     if (nextPage === 'listings') {
       fetchListings()
     }
@@ -126,7 +155,11 @@ function App() {
 
   function navigateToListing(listingId) {
     if (submitting) return
-    window.location.hash = `listing/${encodeURIComponent(listingId)}`
+    const nextPath = `/listing/${encodeURIComponent(listingId)}`
+    window.history.pushState(null, '', nextPath)
+    const nextRoute = getRouteFromLocation()
+    setPage(nextRoute.page)
+    setActiveListingId(nextRoute.listingId)
   }
 
   const activeListing = listings.find((listing) => listing.listingId === activeListingId) || null
@@ -231,7 +264,14 @@ function App() {
       <header className="site-header">
         <div>
           <p className="brand-kicker">Desaree Stevens</p>
-          <a className="brand" href="#home" onClick={() => navigate('home')}>
+          <a
+            className="brand"
+            href="/home"
+            onClick={(event) => {
+              event.preventDefault()
+              navigate('home')
+            }}
+          >
             United Realty Group
           </a>
         </div>
@@ -251,7 +291,7 @@ function App() {
             <a
               key={key}
               className={page === key ? 'nav-link active' : 'nav-link'}
-              href={`#${key}`}
+              href={getPathForPage(key)}
               onClick={(event) => {
                 event.preventDefault()
                 navigate(key)
@@ -614,19 +654,35 @@ function SiteFooter() {
         </div>
         <div className="footer-block">
           <h3>Follow</h3>
-          <a href="https://www.facebook.com/desareeunitedrealty" target="_blank" rel="noreferrer">
-            Facebook
-          </a>
-          <a href="https://www.youtube.com/@UnitedRealtyGroupLasVegas" target="_blank" rel="noreferrer">
-            YouTube
-          </a>
-          <a
-            href="https://www.linkedin.com/company/united-realty-group-las-vegas/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            LinkedIn
-          </a>
+          <div className="footer-socials">
+            <a
+              className="footer-social-link"
+              href="https://www.facebook.com/desareeunitedrealty"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Facebook"
+            >
+              <img src="/facebooklogo.png" alt="Facebook logo" className="footer-social-icon" />
+            </a>
+            <a
+              className="footer-social-link"
+              href="https://www.youtube.com/@UnitedRealtyGroupLasVegas"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="YouTube"
+            >
+              <img src="/youtubelogo.png" alt="YouTube logo" className="footer-social-icon" />
+            </a>
+            <a
+              className="footer-social-link"
+              href="https://www.linkedin.com/company/united-realty-group-las-vegas/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="LinkedIn"
+            >
+              <img src="/linkedinlogo.png" alt="LinkedIn logo" className="footer-social-icon" />
+            </a>
+          </div>
         </div>
       </div>
       <div className="footer-badges">
@@ -653,43 +709,53 @@ function ListingsPage({ listings, loading, error, onSelectListing }) {
 
       {!loading && !error && listings.length > 0 && (
         <section className="listing-grid">
-          {listings.map((listing) => (
-            <button
-              key={listing.listingId}
-              type="button"
-              className="listing-card listing-card-button"
-              onClick={() => onSelectListing(listing.listingId)}
-            >
-              <div className="listing-image">
-                {normalizeImageUrl(listing.mainImage) && (
-                  <img
-                    src={normalizeImageUrl(listing.mainImage)}
-                    alt={listing.title || listing.address || 'Listing photo'}
-                    className="listing-rendered-image"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-                <span>{listing.propertyType || 'Listing'}</span>
-              </div>
-              <div className="listing-content">
-                <div className="listing-header">
-                  <div>
-                    <h2>{listing.title || listing.address || listing.listingId}</h2>
-                    <p>{formatLocation(listing)}</p>
+          {listings.map((listing) => {
+            const descriptionPreview = buildDescriptionPreview(listing.description)
+
+            return (
+              <button
+                key={listing.listingId}
+                type="button"
+                className="listing-card listing-card-button"
+                onClick={() => onSelectListing(listing.listingId)}
+              >
+                <div className="listing-image">
+                  {normalizeImageUrl(listing.mainImage) && (
+                    <img
+                      src={normalizeImageUrl(listing.mainImage)}
+                      alt={listing.title || listing.address || 'Listing photo'}
+                      className="listing-rendered-image listing-card-image"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <span>{listing.propertyType || 'Listing'}</span>
+                </div>
+                <div className="listing-content">
+                  <div className="listing-header">
+                    <div>
+                      <h2>{listing.title || listing.address || listing.listingId}</h2>
+                      <p>{formatLocation(listing)}</p>
+                    </div>
+                    <strong>{formatPrice(listing.price)}</strong>
                   </div>
-                  <strong>{formatPrice(listing.price)}</strong>
+                  <div className="listing-meta">
+                    <span>{listing.bedrooms || '-'} bd</span>
+                    <span>{listing.bathrooms || '-'} ba</span>
+                    <span>{listing.squareFeet || '-'} sq ft</span>
+                  </div>
+                  <p className="listing-description">
+                    {descriptionPreview.text}
+                    {descriptionPreview.isTruncated && (
+                      <span className="listing-read-more"> Read more</span>
+                    )}
+                  </p>
+                  <p className="listing-id">Listing ID: {listing.listingId}</p>
+                  {listing.mlsNumber && <p className="listing-id">MLS #: {listing.mlsNumber}</p>}
+                  <span className="listing-link">View property details</span>
                 </div>
-                <div className="listing-meta">
-                  <span>{listing.bedrooms || '-'} bd</span>
-                  <span>{listing.bathrooms || '-'} ba</span>
-                  <span>{listing.squareFeet || '-'} sq ft</span>
-                </div>
-                <p className="listing-description">{listing.description || 'No description provided.'}</p>
-                <p className="listing-id">Listing ID: {listing.listingId}</p>
-                <span className="listing-link">View property details</span>
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </section>
       )}
     </div>
@@ -760,8 +826,10 @@ function ListingDetailPage({ listing, loading, error, onBack }) {
         <p className="section-label">Property spotlight</p>
         <h1>{listing.title || listing.address || listing.listingId}</h1>
         <p className="section-copy">
-          {formatLocation(listing)} {listing.listingId ? `| ${listing.listingId}` : ''}
+          {formatLocation(listing)}
+          {listing.listingId ? ` | ${listing.listingId}` : ''}
         </p>
+        {listing.mlsNumber && <p className="section-copy">MLS# {listing.mlsNumber}</p>}
       </section>
 
       <section className="detail-hero">
@@ -897,11 +965,6 @@ function ManageListingsPage({
       <section className="section-heading">
         <p className="section-label">Listing management</p>
         <h1>Manage listings</h1>
-        <p className="section-copy">
-          Create a new listing entry or mark an existing listing as unlisted.
-          New listings can include one main image and up to nine additional
-          images.
-        </p>
       </section>
 
       <section className="manage-layout">
@@ -1011,6 +1074,15 @@ function ManageListingsPage({
                 <option>Multi-Family</option>
                 <option>Land</option>
               </select>
+            </label>
+            <label>
+              MLS number
+              <input
+                name="mlsNumber"
+                value={formData.mlsNumber}
+                onChange={onInputChange}
+                placeholder="e.g. 2578910"
+              />
             </label>
             <label className="full-width">
               Property description
@@ -1207,6 +1279,19 @@ function formatPrice(price) {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(numeric)
+}
+
+function buildDescriptionPreview(description) {
+  const fallbackText = 'No description provided.'
+  const source = String(description || '').trim() || fallbackText
+  const maxLength = 170
+
+  if (source.length <= maxLength) {
+    return { text: source, isTruncated: false }
+  }
+
+  const shortened = source.slice(0, maxLength).replace(/\s+\S*$/, '').trim()
+  return { text: `${shortened}...`, isTruncated: true }
 }
 
 function normalizeImageUrl(url) {
