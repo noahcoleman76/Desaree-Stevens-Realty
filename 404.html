@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting...</title>
+    <script>
+      (function () {
+        var current = window.location
+        var redirectPath = '/?p=' + encodeURIComponent(current.pathname)
+        var redirectQuery = current.search ? '&q=' + encodeURIComponent(current.search.slice(1)) : ''
+        var redirectUrl =
+          current.protocol +
+          '//' +
+          current.hostname +
+          (current.port ? ':' + current.port : '') +
+          redirectPath +
+          redirectQuery +
+          current.hash
+        current.replace(redirectUrl)
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>
